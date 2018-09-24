@@ -225,7 +225,10 @@ doCreateNewPartitions() {
 		fat32)
 			parted -s -a optimal "$INSTALL_DEVICE" mkpart primary "$BOOT_FILESYSTEM" "${START}MiB" "${END}MiB"
 			;;
-
+		ext4)
+			parted -s -a optimal "$INSTALL_DEVICE" mkpart primary "${START}MiB" "${END}MiB"
+			[ "$BOOT_EXT4_DISABLE_JOURNALING" == "yes" ] && tune2fs -O "^has_journal" "$INSTALL_DEVICE"
+			;;
 		*)
 			parted -s -a optimal "$INSTALL_DEVICE" mkpart primary "${START}MiB" "${END}MiB"
 			;;
