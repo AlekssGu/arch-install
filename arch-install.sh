@@ -69,6 +69,18 @@ source "$SCRIPT_CONF"
 #    F U N C T I O N S
 # =================================================================================
 
+# doReadPassword() {
+# 	local ENV_NAME=$1
+# 	local new_password="X"
+# 	local repeated_new_password
+# 	while [ $repeated_new_password != $new_password ]; do
+# 		read -p -s new_password
+# 	done
+	
+	
+
+# }
+
 doCopyToChroot() {
 	local CHROOT_SCRIPT_PATH="/mnt/root/$(basename "$SCRIPT_PATH")"
 	if [ ! -d "$CHROOT_SCRIPT_PATH" ]; then
@@ -860,6 +872,12 @@ doX11InstallXfce() {
 	doSuYaourt xfce4-places-plugin
 }
 
+doX11InstallDeepein() {
+	pacman -S --noconfirm --needed \
+	deepin \
+	deepin-extra
+}
+
 doX11InstallUbuntuFontRendering() {
 	# 2x
 	pacman -Rdd --noconfirm cairo
@@ -912,6 +930,33 @@ doX11InstallLightdm() {
 		doSetConf "/etc/lightdm/lightdm-gtk-greeter.conf" "clock-format=" "%a, %d %b %H:%M:%S"
 	fi
 }
+
+doX11StartOnLogin() {
+	if [ ! -f "/home/$MAIN_USER_USERNAME/.bash_profile" ]; then 
+		cp /etc/skel/.bash_profile /home/$MAIN_USER_USERNAME/.bash_profile
+		chmod $MAIN_USER_USERNAME /home/$MAIN_USER_USERNAME/.bash_profile
+	fi
+echo "exec startxfce4" > /home/$MAIN_USER_USERNAME/.xinitrc 
+
+	cat >> /home/$MAIN_USER_USERNAME/.bash_profile << __END__
+if [[ ! $DISPLAY && $XDG_VTNR -eq 1 ]]; then
+  exec startx
+fi
+__END__
+
+	doX11AutostartGetty
+}
+
+doX11AutostartGetty() {
+	cat >> /etc/systemd/system/getty@tty1.service.d/override.conf << __END__
+[Service]
+Type=simple
+ExecStart=
+ExecStart=-/usr/bin/agetty --autologin $MAIN_USER_USERNAME --noclear %I $TERM
+
+__END__
+}
+
 
 doEnableServiceLightdm() {
 	systemctl enable lightdm.service
@@ -1339,7 +1384,14 @@ case "$INSTALL_TARGET" in
 
 			[ "$X11_INSTALL_FONTS" == "yes" ] && doX11InstallFonts
 
-			[ "$X11_INSTALL_XFCE" == "yes" ] && doX11InstallXfce
+			case "$X11_DM" in
+				startdde) 
+					doX11InstallDeepein 
+					;;
+				startxfce4)
+					doX11InstallXfce 
+					;;
+			esac
 
 			[ "$X11_INSTALL_UBUNTU_FONT_RENDERING" == "yes" ] && doX11InstallUbuntuFontRendering
 
@@ -1350,6 +1402,8 @@ case "$INSTALL_TARGET" in
 
 				[ "$ENABLE_SERVICE_LIGHTDM" == "yes" ] && doEnableServiceLightdm
 			fi
+
+			[ "$X11_START_ON_LOGIN" == "yes" ] && [ -n "$X11_DM" ] && doX11StartOnLogin
 
 			if [ "$X11_INSTALL_TEAMVIEWER" == "yes" ]; then
 				doX11InstallTeamviewer
