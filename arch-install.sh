@@ -939,10 +939,10 @@ doX11StartOnLogin() {
 		cp /etc/skel/.bash_profile /home/$MAIN_USER_USERNAME/.bash_profile
 		chmod $MAIN_USER_USERNAME /home/$MAIN_USER_USERNAME/.bash_profile
 	fi
-echo "exec startxfce4" > /home/$MAIN_USER_USERNAME/.xinitrc 
+echo "exec $X11_DM" > /home/$MAIN_USER_USERNAME/.xinitrc 
 
 	cat >> /home/$MAIN_USER_USERNAME/.bash_profile << __END__
-if [[ ! $DISPLAY && $XDG_VTNR -eq 1 ]]; then
+if [[ ! \$DISPLAY && \$XDG_VTNR -eq 1 ]]; then
   exec startx
 fi
 __END__
@@ -955,7 +955,7 @@ doX11AutostartGetty() {
 [Service]
 Type=simple
 ExecStart=
-ExecStart=-/usr/bin/agetty --autologin $MAIN_USER_USERNAME --noclear %I $TERM
+ExecStart=-/usr/bin/agetty --autologin $MAIN_USER_USERNAME --noclear %I \$TERM
 
 __END__
 }
