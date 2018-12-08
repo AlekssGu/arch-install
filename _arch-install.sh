@@ -3,6 +3,7 @@
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_FILE="$(basename "${BASH_SOURCE[0]}")"
 SCRIPT_NAME="${SCRIPT_FILE%.*}"
+USERNAME_PREFIX="ARCH_INSTALL"
 
 doPrintPrompt() {
 	printf "[%s] $*" "$SCRIPT_NAME"
@@ -179,6 +180,38 @@ doConfirmInstall() {
 		doPrint "Starting in $i - Press CTRL-C to abort..."
 		sleep 1
 	done
+}
+
+doSetPassword() {
+	USER=$1
+	doPrint "Setting password for user '$USER'"
+	local EXIT="1"
+	while [ "$EXIT" != "0" ]; do
+		passwd $USER
+		EXIT="$?"
+	done
+}
+
+doReadPasswords() {
+	# read root password
+	useradd ${USERNAME_PREFIX}_root
+	doSetPassword ${USERNAME_PREFIX}_root
+
+	# check if we need host user and reads it's password
+	if [ "$HOST_USER_SET_PASSWORD" == "yes" ] && [ "$ADD_HOST_USER" == "yes" ]; then
+		useradd ${USERNAME_PREFIX}_${HOST_USER_USERNAME}
+		doSetPassword ${USERNAME_PREFIX}_${$HOST_USER_USERNAME}
+	fi
+
+	# check if we need host user and reads it's password
+	if [ "$MAIN_USER_SET_PASSWORD" == "yes" ] && [ "$ADD_MAIN_USER" == "yes" ]; then
+		useradd ${USERNAME_PREFIX}_${MAIN_USER_USERNAME}
+		doSetPassword ${USERNAME_PREFIX}_${$MAIN_USER_USERNAME}
+	fi
+}
+
+doCopyPasswordFile() {
+	cp /etc/shadow /mnt/etc/install_shadow
 }
 
 doDeactivateAllSwaps() {
@@ -467,13 +500,12 @@ doMkinitcpio() {
 	mkinitcpio -p linux
 }
 
-doSetRootPassword() {
-	doPrint "Setting password for user 'root'"
-	local EXIT="1"
-	while [ "$EXIT" != "0" ]; do
-		passwd root
-		EXIT="$?"
-	done
+setEncodedPassword() {
+	USER=$1
+	doPrint "Setting password for user '$USER'"
+
+	ENCODED_ROOT_PSWD=$( awk -F: '/'${USERNAME_PREFIX}_${USER}'/ { print $2}' /etc/install_shadow )
+	echo "${USER}:${ENCODED_ROOT_PSWD}" | chpasswd -e
 }
 
 doBashLogoutClear() {
@@ -516,7 +548,8 @@ doDetectRootUuid() {
 }
 
 doEditGrubConfig() {
-	cat /etc/default/grub | sed -e 's/^\(\(GRUB_CMDLINE_LINUX_DEFAULT=\)\(.*\)\)$/#\1\n\2\3/' > /tmp/default-grub
+	cat /etc/default/grub | sed -e 's/^\(\(GRUB_CMDLINE_LINUX_DEFAULT=\)\(.*\)\)$/#\1\n\2\3/' \
+		-e 's/^GRUB_TIMEOUT=.\+/GRUB_TIMEOUT=1/' > /tmp/default-grub
 	cat /tmp/default-grub | awk 'm = $0 ~ /^GRUB_CMDLINE_LINUX_DEFAULT=/ {
 			gsub(/quiet/, "quiet root=UUID='"$ROOT_UUID"''"$IO_SCHEDULER_KERNEL"''"$FSCK_MODE"'", $0);
 			print
@@ -637,11 +670,7 @@ doAddHostUser() {
 
 	doPrint "Setting password for host user '$HOST_USER_USERNAME'"
 	if [ "$HOST_USER_SET_PASSWORD" == "yes" ]; then
-		local EXIT="1"
-		while [ "$EXIT" != "0" ]; do
-			passwd "$HOST_USER_USERNAME"
-			EXIT="$?"
-		done
+		setEncodedPassword "$HOST_USER_USERNAME" 
 	else
 		passwd -l "$HOST_USER_USERNAME"
 	fi
@@ -670,11 +699,7 @@ doAddMainUser() {
 
 	doPrint "Setting password for main user '$MAIN_USER_USERNAME'"
 	if [ "$MAIN_USER_SET_PASSWORD" == "yes" ]; then
-		local EXIT="1"
-		while [ "$EXIT" != "0" ]; do
-			passwd "$MAIN_USER_USERNAME"
-			EXIT="$?"
-		done
+		setEncodedPassword "$MAIN_USER_USERNAME" 
 	else
 		passwd -l "$MAIN_USER_USERNAME"
 	fi
@@ -682,7 +707,6 @@ doAddMainUser() {
 
 doInstallScreen() {
 	pacman -S --noconfirm --needed screen
-
 	doSetConf "/etc/screenrc" "startup_message " "off"
 }
 
@@ -1170,6 +1194,7 @@ case "$INSTALL_TARGET" in
 		doCheckInstallDevice
 
 		doConfirmInstall
+		doReadPasswords
 
 		doDeactivateAllSwaps
 		doWipeAllPartitions
@@ -1198,6 +1223,7 @@ case "$INSTALL_TARGET" in
 		[ "$OPTIMIZE_FSTAB_NOATIME" == "yes" ] && doOptimizeFstabNoatime
 
 		doCopyToChroot
+		doCopyPasswordFile
 		doChroot chroot
 		[ "$INSTALL_REMOVE_FROM_CHROOT" == "yes" ] && doRemoveFromChroot
 
@@ -1237,7 +1263,7 @@ case "$INSTALL_TARGET" in
 
 		doMkinitcpio
 
-		doSetRootPassword
+		setEncodedPassword root
 
 		[ "$ROOT_USER_BASH_LOGOUT_CLEAR" == "yes" ] && doBashLogoutClear
 
