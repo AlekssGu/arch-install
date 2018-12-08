@@ -4,6 +4,7 @@ SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_FILE="$(basename "${BASH_SOURCE[0]}")"
 SCRIPT_NAME="${SCRIPT_FILE%.*}"
 USERNAME_PREFIX="ARCH_INSTALL"
+LOG_FILE=/var/log/arch-install.log
 
 doPrintPrompt() {
 	printf "[%s] $*" "$SCRIPT_NAME"
@@ -1179,6 +1180,11 @@ doInstallPackageSets() {
 	done
 }
 
+finalizeInstallation() {
+	rm /mnt/etc/install_shadow
+	cp "$LOG_FILE" "/mnt/${LOG_FILE}"
+}
+
 doUnmount() {
 	umount "$BOOT_DEVICE"
 	umount "$ROOT_DEVICE"
@@ -1230,6 +1236,7 @@ case "$INSTALL_TARGET" in
 		doPrint "Flushing - this might take a while..."
 		doFlush
 
+		finalizeInstallation
 		doUnmount
 
 		doPrint "Wake up, Neo... The installation is done!"
