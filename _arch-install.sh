@@ -829,14 +829,13 @@ doSuYaourt() {
 doInstallX11() {
 	pacman -S --noconfirm --needed \
 		xorg-server \
-		xorg-server-utils \
-		xorg-utils \
 		xorg-xinit \
 		xorg-fonts-75dpi \
 		xorg-fonts-100dpi \
 		xorg-twm \
 		xorg-xclock \
-		xterm \
+		xterm
+	pacman -S --noconfirm --needed \
 		$X11_PACKAGES_VIDEO \
 		$X11_PACKAGES_EXTRA
 }
@@ -951,6 +950,7 @@ __END__
 }
 
 doX11AutostartGetty() {
+	mkdir -p /etc/systemd/system/getty@tty1.service.d/
 	cat >> /etc/systemd/system/getty@tty1.service.d/override.conf << __END__
 [Service]
 Type=simple
