@@ -3,7 +3,7 @@
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_FILE="$(basename "${BASH_SOURCE[0]}")"
 SCRIPT_NAME="${SCRIPT_FILE%.*}"
-USERNAME_PREFIX="ARCH_INSTALL"
+USERNAME_PREFIX="ARCH-INSTALL"
 LOG_FILE=/var/log/arch-install.log
 
 doPrintPrompt() {
@@ -195,19 +195,19 @@ doSetPassword() {
 
 doReadPasswords() {
 	# read root password
-	useradd ${USERNAME_PREFIX}_root
-	doSetPassword ${USERNAME_PREFIX}_root
+	useradd ${USERNAME_PREFIX}-root
+	doSetPassword ${USERNAME_PREFIX}-root
 
 	# check if we need host user and reads it's password
 	if [ "$HOST_USER_SET_PASSWORD" == "yes" ] && [ "$ADD_HOST_USER" == "yes" ]; then
-		useradd ${USERNAME_PREFIX}_${HOST_USER_USERNAME}
-		doSetPassword ${USERNAME_PREFIX}_${$HOST_USER_USERNAME}
+		useradd ${USERNAME_PREFIX}-${HOST_USER_USERNAME}
+		doSetPassword ${USERNAME_PREFIX}-${$HOST_USER_USERNAME}
 	fi
 
 	# check if we need host user and reads it's password
 	if [ "$MAIN_USER_SET_PASSWORD" == "yes" ] && [ "$ADD_MAIN_USER" == "yes" ]; then
-		useradd ${USERNAME_PREFIX}_${MAIN_USER_USERNAME}
-		doSetPassword ${USERNAME_PREFIX}_${$MAIN_USER_USERNAME}
+		useradd ${USERNAME_PREFIX}-${MAIN_USER_USERNAME}
+		doSetPassword ${USERNAME_PREFIX}-${$MAIN_USER_USERNAME}
 	fi
 }
 
@@ -505,7 +505,7 @@ setEncodedPassword() {
 	USER=$1
 	doPrint "Setting password for user '$USER'"
 
-	ENCODED_ROOT_PSWD=$( awk -F: '/'${USERNAME_PREFIX}_${USER}'/ { print $2}' /etc/install_shadow )
+	ENCODED_ROOT_PSWD=$( awk -F: '/'${USERNAME_PREFIX}-${USER}'/ { print $2}' /etc/install_shadow )
 	echo "${USER}:${ENCODED_ROOT_PSWD}" | chpasswd -e
 }
 
